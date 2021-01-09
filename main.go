@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"musicplay/mpg123"
+	"play-all-mp3/mpg123"
 
 	"github.com/gordonklaus/portaudio"
 )
