@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -19,14 +20,18 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("missing required argument:  input dir name")
+	var h = flag.Bool("h", false, "显示帮助信息。")
+	flag.Parse()
+
+	if *h || flag.Arg(0) == "" {
+		fmt.Print("用法：play-all-mp3 <保存着MP3文件的目录>\n")
+		flag.Usage()
 		return
 	}
 
 	// 捕获信号
 
-	dirName := os.Args[1]
+	dirName := flag.Arg(0)
 	info, err := os.Stat(dirName)
 	chk(err)
 	if info.IsDir() == false {
