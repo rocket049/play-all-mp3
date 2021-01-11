@@ -60,8 +60,8 @@ type PlayRecord struct {
 	Pos  int32
 }
 
-/*
 //使用 portaudio
+/*
 func playFile(fileName string, skip int32) int {
 	fmt.Printf("Play File:%s\nPos:%d\n", fileName, skip)
 	var Pos int32
@@ -190,7 +190,7 @@ func getListWithPos(dir string) (txtList []string, pos int32, err error) {
 	return
 }
 
-////使用 oto
+//使用 oto
 func playFile2(fileName string, skip int32) int {
 	fmt.Printf("Play File:%s\nPos:%d\n", fileName, skip)
 	var Pos int32
