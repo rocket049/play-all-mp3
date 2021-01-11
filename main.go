@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,7 +14,7 @@ import (
 
 	"play-all-mp3/mpg123"
 
-	"github.com/gordonklaus/portaudio"
+	"github.com/hajimehoshi/oto"
 )
 
 func main() {
@@ -43,14 +41,14 @@ func main() {
 
 	fmt.Println("Playing.  Press Ctrl-C to stop.")
 	//修正进度
-	var fix int32 = 5
+	var fix int32 = 10
 	if skip > fix {
 		skip -= fix
 	} else {
 		skip = 0
 	}
 	for i := range mp3List {
-		if playFile(filepath.Join(dirName, mp3List[i]), skip) == -1 {
+		if playFile2(filepath.Join(dirName, mp3List[i]), skip) == -1 {
 			break
 		}
 		skip = 0
@@ -62,6 +60,7 @@ type PlayRecord struct {
 	Pos  int32
 }
 
+/*
 func playFile(fileName string, skip int32) int {
 	fmt.Printf("Play File:%s\nPos:%d\n", fileName, skip)
 	var Pos int32
@@ -119,7 +118,7 @@ func playFile(fileName string, skip int32) int {
 	}
 	updateRecord(fileName, -1)
 	return 0
-}
+}*/
 
 func updateRecord(fn string, pos int32) {
 	r := PlayRecord{File: filepath.Base(fn), Pos: pos}
@@ -188,4 +187,59 @@ func getListWithPos(dir string) (txtList []string, pos int32, err error) {
 	}
 	txtList = names[n:]
 	return
+}
+
+func playFile2(fileName string, skip int32) int {
+	fmt.Printf("Play File:%s\nPos:%d\n", fileName, skip)
+	var Pos int32
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, os.Kill)
+	// create mpg123 decoder instance
+	decoder, err := mpg123.NewDecoder("")
+	chk(err)
+	// 打开文件
+	chk(decoder.Open(fileName))
+	defer decoder.Close()
+
+	// get audio format information
+	rate, channels, _ := decoder.GetFormat()
+
+	// make sure output format does not change
+	decoder.FormatNone()
+	decoder.Format(rate, channels, mpg123.ENC_SIGNED_16)
+
+	var bufLen = 8192 * 2
+	// 用前面创建的channels打开流
+	otoCtx, err := oto.NewContext(int(rate), channels, 2, bufLen)
+	chk(err)
+	player := otoCtx.NewPlayer()
+	defer player.Close()
+
+	atomic.StoreInt32(&Pos, 0)
+	for {
+		audio := make([]byte, bufLen)
+		// 从decoder读出数据到audio
+		n, err := decoder.Read(audio)
+		if err == mpg123.EOF {
+			break
+		}
+		chk(err)
+		if atomic.LoadInt32(&Pos) < skip {
+			atomic.AddInt32(&Pos, 1)
+			continue
+		}
+
+		_, err = player.Write(audio[:n])
+		chk(err)
+		atomic.AddInt32(&Pos, 1)
+		select {
+		case <-sig:
+			fmt.Printf("File:%s\nPos:%d\n", fileName, Pos)
+			updateRecord(fileName, atomic.LoadInt32(&Pos))
+			return -1
+		default:
+		}
+	}
+	updateRecord(fileName, -1)
+	return 0
 }
