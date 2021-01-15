@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"play-all-mp3/mpg123"
@@ -19,6 +20,8 @@ import (
 
 func main() {
 	var h = flag.Bool("h", false, "显示帮助信息。")
+	var notContinue = flag.Bool("n", false, "从头播放，不读取播放进度")
+	var fileContinue = flag.Bool("fc", false, "从上次播放的文件头部开始播放")
 	flag.Parse()
 
 	if *h || flag.Arg(0) == "" {
@@ -37,7 +40,7 @@ func main() {
 		return
 	}
 
-	mp3List, skip, err := getListWithPos(dirName)
+	mp3List, skip, err := getListWithPos(dirName, *notContinue)
 
 	fmt.Println("Playing.  Press Ctrl-C to stop.")
 	//修正进度
@@ -45,6 +48,9 @@ func main() {
 	if skip > fix {
 		skip -= fix
 	} else {
+		skip = 0
+	}
+	if *fileContinue {
 		skip = 0
 	}
 	for i := range mp3List {
@@ -146,7 +152,7 @@ func arrayReduce(a []string) []string {
 	return names
 }
 
-func getListWithPos(dir string) (txtList []string, pos int32, err error) {
+func getListWithPos(dir string, nc bool) (txtList []string, pos int32, err error) {
 	d, err := os.Open(dir)
 	if err != nil {
 		return
@@ -160,6 +166,13 @@ func getListWithPos(dir string) (txtList []string, pos int32, err error) {
 	names = arrayReduce(names)
 
 	sort.Strings(names)
+
+	if nc {
+		txtList = names
+		pos = 0
+		err = nil
+		return
+	}
 
 	var playLog PlayRecord
 
@@ -190,6 +203,9 @@ func getListWithPos(dir string) (txtList []string, pos int32, err error) {
 	return
 }
 
+var otoCtx *oto.Context
+var otoOnce sync.Once
+
 //使用 oto
 func playFile2(fileName string, skip int32) int {
 	fmt.Printf("Play File:%s\nPos:%d\n", fileName, skip)
@@ -212,8 +228,12 @@ func playFile2(fileName string, skip int32) int {
 
 	var bufLen = 8192 * 2
 	// 用前面创建的channels打开流
-	otoCtx, err := oto.NewContext(int(rate), channels, 2, bufLen)
-	chk(err)
+	otoOnce.Do(func() {
+		var err error
+		otoCtx, err = oto.NewContext(int(rate), channels, 2, bufLen)
+		chk(err)
+	})
+
 	player := otoCtx.NewPlayer()
 	defer player.Close()
 
