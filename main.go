@@ -13,7 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"play-all-mp3/mpg123"
+	"gitee.com/rocket049/play-all-mp3/mpg123"
 
 	"github.com/hajimehoshi/oto"
 )
