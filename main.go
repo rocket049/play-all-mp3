@@ -13,14 +13,14 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"play-all-mp3/mpg123"
+	"gitee.com/rocket049/play-all-mp3/mpg123"
 
 	"github.com/hajimehoshi/oto"
 )
 
 func main() {
 	var h = flag.Bool("h", false, "显示帮助信息。")
-	var notContinue = flag.Bool("n", false, "从头播放，不读取播放进度")
+	var notContinue = flag.Bool("nc", false, "从头播放，不读取播放进度")
 	var fileContinue = flag.Bool("fc", false, "从上次播放的文件头部开始播放")
 	flag.Parse()
 
