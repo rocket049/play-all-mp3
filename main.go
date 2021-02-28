@@ -22,6 +22,7 @@ func main() {
 	var h = flag.Bool("h", false, "显示帮助信息。")
 	var notContinue = flag.Bool("nc", false, "从头播放，不读取播放进度")
 	var fileContinue = flag.Bool("fc", false, "从上次播放的文件头部开始播放")
+	var from = flag.String("from", "", "从该文件开始播放")
 	flag.Parse()
 
 	if *h || flag.Arg(0) == "" {
@@ -39,20 +40,26 @@ func main() {
 		fmt.Println("Please input dir name")
 		return
 	}
-
-	mp3List, skip, err := getListWithPos(dirName, *notContinue)
-
-	fmt.Println("Playing.  Press Ctrl-C to stop.")
-	//修正进度
-	var fix int32 = 10
-	if skip > fix {
-		skip -= fix
+	var mp3List []string
+	var skip int32
+	if len(*from) > 0 {
+		mp3List, skip, err = getListWithName(dirName, *from)
 	} else {
-		skip = 0
+		mp3List, skip, err = getListWithPos(dirName, *notContinue)
+
+		fmt.Println("Playing.  Press Ctrl-C to stop.")
+		//修正进度
+		var fix int32 = 10
+		if skip > fix {
+			skip -= fix
+		} else {
+			skip = 0
+		}
+		if *fileContinue {
+			skip = 0
+		}
 	}
-	if *fileContinue {
-		skip = 0
-	}
+
 	for i := range mp3List {
 		if playFile2(filepath.Join(dirName, mp3List[i]), skip) == -1 {
 			break
@@ -150,6 +157,35 @@ func arrayReduce(a []string) []string {
 		}
 	}
 	return names
+}
+
+func getListWithName(dir, name string) (txtList []string, pos int32, err error) {
+	d, err := os.Open(dir)
+	if err != nil {
+		return
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return
+	}
+
+	names = arrayReduce(names)
+
+	sort.Strings(names)
+
+	txtList = names
+	pos = 0
+	err = nil
+
+	for i := range names {
+		if names[i] == name {
+			txtList = names[i:]
+			break
+		}
+	}
+
+	return
 }
 
 func getListWithPos(dir string, nc bool) (txtList []string, pos int32, err error) {
